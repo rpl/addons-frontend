@@ -6,7 +6,7 @@ import fs from 'fs';
 import path from 'path';
 
 import webpack from 'webpack';
-import SriPlugin from 'webpack-subresource-integrity';
+import { SubresourceIntegrityPlugin } from 'webpack-subresource-integrity';
 import tmp from 'tmp';
 
 import SriDataPlugin from 'amo/server/sriDataPlugin';
@@ -37,7 +37,9 @@ describe(__filename, () => {
 
     const plugins = [];
     if (includeSriPlugin) {
-      plugins.push(new SriPlugin({ hashFuncNames: ['sha512'] }));
+      plugins.push(
+        new SubresourceIntegrityPlugin({ hashFuncNames: ['sha512'] }),
+      );
     }
     plugins.push(new SriDataPlugin({ saveAs: sriFile }));
 
@@ -121,19 +123,29 @@ describe(__filename, () => {
     // This is a quick-hack to retrieve the hook in the plugin.
     const compiler = {
       hook: null,
-      plugin(event, hook) {
-        this.hook = hook;
+      hooks: {
+        done: {
+          tap(name, hook) {
+            compiler.hook = hook;
+          },
+        },
       },
     };
     plugin.apply(compiler);
 
     const stats = {
       compilation: {
-        assets: {
-          // No `integrity` property in this asset.
-          [loadableStatsFilename]: {},
-        },
         errors: [],
+      },
+      toJson() {
+        return {
+          assets: [
+            {
+              name: loadableStatsFilename,
+              // No `integrity` property in this asset.
+            },
+          ],
+        };
       },
     };
 

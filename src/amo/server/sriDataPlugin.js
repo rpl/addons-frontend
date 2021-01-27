@@ -18,22 +18,25 @@ export default class SriDataPlugin {
   apply(compiler) {
     const loadableStatsFilename = this.config.get('loadableStatsFilename');
 
-    compiler.plugin('done', (stats) => {
+    compiler.hooks.done.tap('SriDataPlugin', (stats) => {
       const sriStats = {};
+      const { assets } = stats.toJson();
+
       try {
-        Object.keys(stats.compilation.assets).forEach((baseName) => {
-          const asset = stats.compilation.assets[baseName];
+        assets.forEach((asset) => {
+          const { name } = asset;
+
           // The `loadable-stats.json` is created by the `LoadablePlugin`
           // (webpack). No need to create SRI for it, it is only used by the
           // server.
-          if (baseName !== loadableStatsFilename && !asset.integrity) {
+          if (name !== loadableStatsFilename && !asset.integrity) {
             throw new Error(
-              oneLine`The integrity property is falsey for
-              asset ${baseName}; Is the webpack-subresource-integrity
-              plugin installed and enabled?`,
+              oneLine`The integrity property is falsey for asset ${name}; Is
+                  the webpack-subresource-integrity plugin installed and
+                  enabled?`,
             );
           }
-          sriStats[baseName] = asset.integrity;
+          sriStats[name] = asset.integrity;
         });
 
         fs.writeFileSync(this.saveAs, JSON.stringify(sriStats));
